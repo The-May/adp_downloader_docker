@@ -1,69 +1,120 @@
-This script downloads payslips from [adpworld.de](https://www.adpworld.de)'s ePayslip application. It does not require any manual link extraction
-and supports the download of all availible documents. Just configure you company, username and password, run the script and
-find all downloads conveniently placed on you HDD.
+# ADP Downloader (Docker Edition)
 
-**Note:** this script was developed with and for accounts [@SUSE](https://github.com/SUSE). If you do not work for SUSE be warned
-that it might break and does not work at all. Feel free to try it anyway and report your findings as github issues :+1:.
+This project builds on the original [adp_downloader](https://github.com/nicksinger/adp_downloader) by nicksinger and wraps it with additional scripts for automated headless login, SMB file copy, and a simple HTTP status API — all packaged as a Docker container.
 
-# Installation
+## What's new compared to the original
 
+| Script | Description |
+|---|---|
+| `login.py` | Headless Chromium login via Playwright — extracts the `EMEASMSESSION` cookie automatically and saves it to `config.ini` |
+| `downloader.py` | Unchanged from the original |
+| `smb_copy.py` | Copies downloaded PDFs to an SMB share (e.g. a Paperless-ngx consume folder) |
+| `handler.py` | Orchestrates the full pipeline and exposes a small HTTP API for triggering runs and checking status |
+
+---
+
+## Requirements
+
+- Docker
+- Docker Compose
+
+---
+
+## Installation
+
+```bash
+git clone https://github.com/The-May/adp_downloader_docker.git
+cd adp_downloader_docker
 ```
-git clone https://github.com/nicksinger/adp_downloader.git
-cd adp_downloader
-mkdir -p downloads
-```
 
-**Note** for SUSE/openSUSE users: Make sure you've installed `python3-requests` and `python3-beautifulsoup4`.
+---
 
-Alternatively and for development you can get all development requirements
-with
+## Configuration
 
-```
-pip install -r requirements.txt
-```
+Create a `config.ini` in the project directory:
 
-# Configuration
-
-Create a config.ini in the same directory. The file has the following format:
-
-```
+```ini
 [credentials]
-cookie = your_emeasmsession_cookie
+username = changeme
+password = changeme
+cookie = thiswillautomaticallybechanged
+
+[smb]
+username = smbuser1
+password = smbpassword
+server   = 192.168.1.2
+share    = path\to\folder\consume
 ```
 
-where "your_emeasmsession_cookie" corresponds to the `EMEASMSESSION`-cookie set by the web application after you logged in.
-You can use your browsers developer tools or an extension like [cookies.txt](https://addons.mozilla.org/de/firefox/addon/cookies-txt/) to extract it.
+> The `cookie` value is automatically updated by `login.py` after each successful login — you do not need to set it manually.
 
-# Execution
+`status.json` and `download_history.db` are created automatically on first run.
 
-Simply run `python3 downloader.py` and watch it fetch your documents.
-By default the downloader will create a local sqlite database to remember already downloaded files. Each new execution of the downloader will only download newly added files to your disk. This allows you to easily run the downloader in a cron job.
+---
 
-## Contribute
+## Running
 
-This project lives in https://github.com/nicksinger/adp_downloader
+```bash
+# First time or after code changes
+docker compose up -d --build
 
-Feel free to add issues in github or send pull requests.
-
-### Rules for commits
-
-* For git commit messages use the rules stated on
-  [How to Write a Git Commit Message](http://chris.beams.io/posts/git-commit/) as
-  a reference
-
-If this is too much hassle for you feel free to provide incomplete pull
-requests for consideration or create an issue with a code change proposal.
-
-### Local testing
-
-There are currently some limited automatic tests available. Call
-
-```
-make test
+# After only editing config.ini
+docker compose restart
 ```
 
-to execute all tests.
+---
+
+## HTTP API
+
+The container exposes a small API on port `8765`:
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/health` | GET | Heartbeat — returns pipeline and copy status |
+| `/start` | GET | Triggers a full run (login → download → SMB copy) |
+
+### Example `/health` response
+
+```json
+{
+  "alive": true,
+  "running": false,
+  "time": "2026-05-01T10:11:54",
+  "pipeline": {
+    "last_run": "2026-05-01T10:11:53",
+    "status": "success"
+  },
+  "copy": {
+    "last_copy": "2026-05-01T10:11:54",
+    "status": "success",
+    "last_files": [
+      "20260401_1000100_01009680_VERD_Verdienstabrechnung_20260410.pdf"
+    ],
+    "error": null
+  }
+}
+```
+
+Copy statuses: `success`, `nothing_to_copy`, `failed`.
+
+---
+
+## Automating with cron
+
+To trigger a run automatically, e.g. on the 1st of every month at 8am:
+
+```bash
+crontab -e
+```
+
+```
+0 8 1 * * curl -s http://localhost:8765/start
+```
+
+---
 
 ## License
 
-This project is licensed under the MIT license, see LICENSE file for details.
+MIT — see LICENSE file for details.
+
+Original project by [nicksinger](https://github.com/nicksinger/adp_downloader).
