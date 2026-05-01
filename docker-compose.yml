@@ -1,0 +1,13 @@
+services:
+  adp-downloader:
+    build: .
+    container_name: adp-downloader
+    restart: unless-stopped
+    ports:
+      - "8765:8765"
+    volumes:
+      - ./config.ini:/app/config.ini
+      - ./downloads:/app/downloads
+      - ./status.json:/app/status.json
+      - ./download_history.db:/app/download_history.db
+      - ./adp_profile:/app/adp_profile
