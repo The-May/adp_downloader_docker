@@ -101,7 +101,7 @@ Copy statuses: `success`, `nothing_to_copy`, `failed`.
 
 ## Automating with cron
 
-To trigger a run automatically, e.g. on the 1st of every month at 8am:
+To trigger a run automatically, e.g. on the 1st of every month at 8am with simple cron or just visit the webserver on your browser with http://ip.of.your.server:8765/start
 
 ```bash
 crontab -e
