@@ -1,6 +1,7 @@
 services:
   adp-downloader:
-    build: .
+    image: ghcr.io/the-may/adp_downloader_docker:latest
+#    build: .
     container_name: adp-downloader
     restart: unless-stopped
     ports:
