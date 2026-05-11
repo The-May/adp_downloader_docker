@@ -17,4 +17,4 @@ RUN mkdir -p downloads
 
 EXPOSE 8765
 
-CMD ["python", "handler.py"]
+CMD ["python","-u","handler.py"]
